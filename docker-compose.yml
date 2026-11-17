@@ -1,7 +1,7 @@
 # The "client's staging environment": Ghost + a fake inbox for magic-link emails.
 services:
   ghost:
-    image: ghost:5-alpine
+    image: ghost:5.130.6-alpine
     ports: ["2368:2368"]
     environment:
       NODE_ENV: development
@@ -13,6 +13,10 @@ services:
       mail__options__port: 1025
       mail__options__secure: "false"
       security__staffDeviceVerification: "false"
+      # Staging-only: an E2E suite signs up many members from one IP.
+      # Production keeps Ghost's default spam protection.
+      spam__member_login__freeRetries: "100000"
+      spam__member_login__minWait: "1"
     depends_on: [mailpit]
   mailpit:
     image: axllent/mailpit:latest

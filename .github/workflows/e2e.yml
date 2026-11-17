@@ -1,5 +1,16 @@
 name: e2e
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * 1' # weekly, so the public report stays fresh
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -7,11 +18,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npx playwright install --with-deps
+      - run: npx playwright install --with-deps chromium webkit firefox
       - run: npm run env:up
       - run: npx playwright test
+      - name: Ghost logs on failure
+        if: failure()
+        run: docker compose logs ghost | tail -200
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: playwright-report, path: playwright-report, retention-days: 14 }
+      - uses: actions/upload-pages-artifact@v3
+        if: always() && github.ref == 'refs/heads/main'
+        with: { path: playwright-report }
+
+  publish-report:
+    needs: test
+    if: always() && github.ref == 'refs/heads/main' && needs.test.result != 'cancelled'
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
