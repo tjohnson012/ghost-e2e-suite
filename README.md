@@ -6,7 +6,7 @@ It's what a client receives: a written test plan, a suite in their repo, CI that
 
 - **Client brief it was built against:** [CLIENT-BRIEF.md](CLIENT-BRIEF.md) (role-play)
 - **Test plan:** [TEST-PLAN.md](TEST-PLAN.md)
-- **Latest test report:** see the Actions tab, or the live report link in the repo description
+- **Live test report (updated on every push to main):** https://tjohnson012.github.io/ghost-e2e-suite/
 - **Notes from the build, including what was hard:** [BUILD-NOTES.md](BUILD-NOTES.md)
 
 ## What it covers
