@@ -1,0 +1,16 @@
+{
+  "name": "dryrun-ghost",
+  "private": true,
+  "scripts": {
+    "env:up": "docker compose up -d && ./scripts/wait.sh && ./scripts/seed.sh",
+    "env:down": "docker compose down -v",
+    "test": "playwright test",
+    "test:chrome": "playwright test --project=chrome",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
