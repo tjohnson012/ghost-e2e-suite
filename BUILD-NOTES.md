@@ -56,7 +56,7 @@ Round 1 passed 3 runs in a row locally. **CI then failed 1 of 75.** Every interm
 |---|---|---|---|
 | Publish "didn't finish" in CI | **My own assertion.** The confirm button relabels itself "Publishing" and stays in the dialog, so "the button is gone" passed early, before publishing finished. | Wait for the outcome (the posts list), not a button disappearing. | 40/40 publishes finished, the slowest in 1.4 s |
 | Two tests collided | Titles used `Date.now()`, and two parallel workers got **the same millisecond**. One test deleted the other's post. | `uniqueId()` adds a random suffix to every title. | 121/121 admin runs (20 per test, Chrome and Safari) |
-| Random timeouts across many tests | Ghost 6 loads its signup popup, search and theme images from **public CDNs** (jsdelivr, static.ghost.org). Ghost answered in under 60 ms; the CDN took **up to 10 s per page**. | Fetch each CDN file once per run, then serve it from disk. Same URLs and versions as production. | Full run went from **1.9 min to ~30 s** |
+| Random timeouts across many tests | Ghost 6 loads its signup popup, search and theme images from **public CDNs** (jsdelivr, static.ghost.org). Ghost answered in under 60 ms; the CDN took **up to 10 s per page**. | Fetch each CDN file once per run, then serve it from disk. Same URLs and versions as production. | Full local run went from **1.9 min to ~30 s** (CI starts each run with an empty cache, so it stays ~1.5–2 min) |
 | iPhone: "Account" not found | The page object used `isVisible()`, which checks **once, instantly**. It also tapped the menu before the theme's script had hooked it up, so the tap did nothing. | Wait for the header to render, then tap until the menu actually opens, like a person would. | 121/121 signup runs on iPhone + Chrome |
 | Admin login or editor "not found" under load | Each test opens a fresh page, so Ghost 6's large admin bundle boots from scratch. Under heavy machine load that takes more than 5 s. Logs proved the login itself had succeeded. | Check for "signed in" by the admin navigation (not a URL redirect), and give the admin's first load an explicit, commented 20 s allowance. | |
 
@@ -65,5 +65,5 @@ Round 1 passed 3 runs in a row locally. **CI then failed 1 of 75.** Every interm
 ### What to tell the client
 
 - **Product bugs found: 0.** That's a normal upgrade outcome. Telling "the app changed on purpose" from "the app broke" quickly and correctly is the job. Calling #4 a bug would have been the wrong call.
-- **The suite is now faster and sturdier than before the upgrade**: no CDN dependency, unique test data, no instant-check races.
+- **The suite is now sturdier than before the upgrade**: no CDN dependency during a run, unique test data, no instant-check races.
 - **Watch item:** Ghost 6's admin is heavier to load than Ghost 5's.
