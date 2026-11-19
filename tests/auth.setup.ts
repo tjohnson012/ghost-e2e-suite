@@ -7,6 +7,9 @@ setup('admin signs in', async ({ page }) => {
   await page.locator('input[name="identification"]').fill(ADMIN.email);
   await page.locator('input[name="password"]').fill(ADMIN.password);
   await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page).toHaveURL(/\/ghost\/#\/(dashboard|analytics|site|posts)/);
+  // Signed in = the admin navigation is showing. (Don't wait on the URL: under load the session is
+  // created and the admin renders well before the redirect from /ghost/#/ to the dashboard happens.)
+  // The admin app is a large bundle, so its first load gets a longer, explicit allowance.
+  await expect(page.getByRole('link', { name: 'View site', exact: true })).toBeVisible({ timeout: 20_000 });
   await page.context().storageState({ path: ADMIN_STATE });
 });

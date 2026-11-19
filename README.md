@@ -41,6 +41,7 @@ npm run env:down      # wipe the environment
 - **Test data through the API, not the UI.** `GhostAdmin` creates posts through Ghost's Admin API and deletes them after each test. Only the flow under test is clicked through.
 - **Independent tests.** Every test makes its own data with a unique email, so tests can run in any order, in parallel.
 - **Page objects for the tricky UI.** `pages/portal.ts` (the signup popup lives in an iframe), `pages/editor.ts` (Ghost's editor and publish flow), `pages/site-header.ts` (navigation collapses behind a menu on phones).
+- **No dependence on CDN speed.** Ghost loads its popup, search and theme images from public CDNs. The suite fetches each file once per run and serves it from disk (`.cdn-cache/`, same URLs and versions as production).
 - **No sleeps.** Only web-first assertions and polling. No retries in config: a flaky test gets fixed, not retried.
 
 ## Adding a test

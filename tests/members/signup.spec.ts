@@ -21,10 +21,10 @@ test.describe('Member signup and sign-in (magic link)', () => {
     expect((await me.json()).email).toBe(email);
   });
 
-  test('existing member signs back in with a new link', async ({ page, browser, mailbox }, info) => {
+  test('existing member signs back in with a new link', async ({ page, newContext, mailbox }, info) => {
     const email = uniqueEmail(`return-${info.project.name}`);
     // Create the member in a separate session, then sign in fresh, like a returning reader.
-    const first = await browser.newContext();
+    const first = await newContext();
     const firstPage = await first.newPage();
     const portal1 = new Portal(firstPage);
     await portal1.openSignup();

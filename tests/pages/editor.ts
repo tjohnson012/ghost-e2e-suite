@@ -4,14 +4,19 @@ import { expect, type Page } from '@playwright/test';
 export class Editor {
   constructor(private page: Page) {}
 
+  /** Each test opens a fresh page, so Ghost 6's large admin bundle boots from scratch first. Allow for it. */
+  private async editorReady() {
+    await expect(this.page.getByRole('textbox', { name: 'Post title' })).toBeVisible({ timeout: 20_000 });
+  }
+
   async newPost() {
     await this.page.goto('/ghost/#/editor/post');
-    await expect(this.page.getByRole('textbox', { name: 'Post title' })).toBeVisible();
+    await this.editorReady();
   }
 
   async open(postId: string) {
     await this.page.goto(`/ghost/#/editor/post/${postId}`);
-    await expect(this.page.getByRole('textbox', { name: 'Post title' })).toBeVisible();
+    await this.editorReady();
   }
 
   async write(title: string, body: string) {
@@ -33,11 +38,10 @@ export class Editor {
     await this.page.mouse.move(200, 200, { steps: 5 });
     await this.page.getByRole('button', { name: 'Publish', exact: true }).click();
     await this.page.getByRole('button', { name: /continue, final review/i }).click();
-    const confirm = this.page.getByRole('button', { name: /publish post, right now/i });
-    await confirm.click();
-    // Ghost 6 has no "Boom!" screen any more: the dialog closes and you land back on the posts list.
-    await expect(confirm).toBeHidden();
-    await expect(this.page).toHaveURL(/#\/posts/);
+    await this.page.getByRole('button', { name: /publish post, right now/i }).click();
+    // While publishing, the confirm button relabels itself "Publishing". Done = you land on the posts list.
+    // (Ghost 6 sometimes shows a "Boom! It's out there" popup there too, depending on site state. Not asserted.)
+    await expect(this.page).toHaveURL(/#\/posts/, { timeout: 20_000 });
   }
 
   async unpublish() {

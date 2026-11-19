@@ -34,22 +34,36 @@ Checking that the paywall is visible isn't enough. A theme could ship the full t
 
 ## Upgrade: Ghost 5.130.6 → 6.78.0 (major version)
 
-This is what ongoing maintenance looks like. Bump the version, run the suite, sort every failure into **real bug** or **test out of date**, fix, and report.
+This is what ongoing maintenance looks like. Bump the version, run the suite, sort every failure into **real bug** or **test out of date**, fix it, then prove the fix under stress, not just once.
 
-**First run on Ghost 6:** 12 of 75 failed. That's 3 root causes, each showing up in several browsers.
+### Round 1: the first run on Ghost 6 (12 of 75 failed, 5 causes)
 
 | # | What failed | Real bug? | Cause | Fix |
 |---|---|---|---|---|
-| 1 | Signed-in member reads the post (4 browsers) and tampered link (4 browsers) | No | Ghost 6 added an anti-spam **integrity token** to `send-magic-link`. Our API shortcut didn't send one, so Ghost returned 400. Signup through the real popup kept working because Portal fetches the token itself. | New `requestMagicLink()` helper fetches `/members/api/integrity-token/` first. It works on Ghost 5 too, where the endpoint doesn't exist. |
-| 2 | Editor can't find the title (Chrome, Safari) | No | The admin editor was rebuilt, and the `data-test-editor-title-input` hook is gone. | Use the accessible name: `getByRole('textbox', { name: 'Post title' })`. This survives the next redesign too. |
-| 3 | Click into the post body hangs | No | Ghost 6 keeps a **hidden** second editor instance in the page, and the old selector matched it first. | Target only the visible editor: `[data-lexical-editor]` filtered to `visible: true`. |
-| 4 | Publish button "covered" by the editor (Chrome, Safari) | **No, checked carefully** | Ghost 6 fades the header out while you type (opacity 0, clicks pass through) and brings it back **on mouse movement**. A real person always moves the mouse toward Publish; a test that teleports doesn't. We confirmed this by measuring what's under the pointer before and after moving the mouse, and by checking that a reloaded post's button works. | `publishNow()` moves the mouse first, like a person. |
-| 5 | No "Boom! It's out there" confirmation | No | Ghost 6 removed that screen. After publishing, the dialog closes and you land on the posts list. The post *is* published (checked through the API and a public 200). | Assert the dialog closes and the posts list loads. The spec still proves the outcome: an anonymous reader can open the post. |
+| 1 | Member sign-in through the API (8 runs) | No | Ghost 6 added an anti-spam **integrity token** to `send-magic-link`. Our API shortcut didn't send one, so Ghost returned 400. Signing up through the real popup kept working because Portal fetches the token itself. | New `requestMagicLink()` fetches `/members/api/integrity-token/` first. It also works on Ghost 5, where that endpoint doesn't exist. |
+| 2 | Editor title not found | No | The admin editor was rebuilt, and the `data-test-editor-title-input` hook is gone. | Find it by accessible name: `getByRole('textbox', { name: 'Post title' })`. That survives the next redesign too. |
+| 3 | Clicking into the post body hangs | No | Ghost 6 keeps a **hidden** second editor in the page, and the old selector matched it first. | Target only the visible editor. |
+| 4 | Publish button "covered" by the editor | **No. Checked carefully.** | Ghost 6 fades the header out while you type (opacity 0, clicks pass through) and brings it back **when the mouse moves**. A person always moves the mouse toward Publish; a test that jumps straight there doesn't. Confirmed by measuring what's under the pointer before and after moving the mouse. | `publishNow()` moves the mouse first, like a person. |
+| 5 | Old "publish done" signal missing | No | The publish flow ends differently: the dialog closes and you land on the posts list. A "Boom! It's out there" popup appears **sometimes**, depending on site state, so it can't be the signal. | Done = you're on the posts list (verified against the API: the post really is published). |
 
-**One mistake the suite exposed in itself:** the tampered-link test fired the API call without checking the response, so the failure read "no email arrived" when the real error was a 400. Both call sites now go through one helper that asserts `201` and prints Ghost's error body.
+One weakness the suite exposed in itself: the tampered-link test ignored the API response, so a 400 showed up as "no email arrived." Both call sites now go through one helper that asserts `201` and prints Ghost's error.
 
-**Result:** 75/75 passed **3 runs in a row**, no retries, in all 4 browsers.
+### Round 2: "passes 3 times" isn't good enough
 
-**Worth telling the client:** a full run now takes **~2.0 min, up from ~1.1 min** on Ghost 5. Ghost 6's admin is heavier. That isn't a failure, but it's a trend to watch.
+Round 1 passed 3 runs in a row locally. **CI then failed 1 of 75.** Every intermittent failure got a root cause before it was fixed, and each fix was proven by running the affected tests 15–20 times in parallel.
 
-**Product bugs found in this upgrade: 0.** That's a normal outcome: most upgrade failures are tests relying on things that changed on purpose. Telling the two apart quickly and correctly is the job. Calling #4 a bug would have been the wrong call.
+| Intermittent failure | Root cause | Fix | Proof |
+|---|---|---|---|
+| Publish "didn't finish" in CI | **My own assertion.** The confirm button relabels itself "Publishing" and stays in the dialog, so "the button is gone" passed early, before publishing finished. | Wait for the outcome (the posts list), not a button disappearing. | 40/40 publishes finished, the slowest in 1.4 s |
+| Two tests collided | Titles used `Date.now()`, and two parallel workers got **the same millisecond**. One test deleted the other's post. | `uniqueId()` adds a random suffix to every title. | 121/121 admin runs (20 per test, Chrome and Safari) |
+| Random timeouts across many tests | Ghost 6 loads its signup popup, search and theme images from **public CDNs** (jsdelivr, static.ghost.org). Ghost answered in under 60 ms; the CDN took **up to 10 s per page**. | Fetch each CDN file once per run, then serve it from disk. Same URLs and versions as production. | Full run went from **1.9 min to ~30 s** |
+| iPhone: "Account" not found | The page object used `isVisible()`, which checks **once, instantly**. It also tapped the menu before the theme's script had hooked it up, so the tap did nothing. | Wait for the header to render, then tap until the menu actually opens, like a person would. | 121/121 signup runs on iPhone + Chrome |
+| Admin login or editor "not found" under load | Each test opens a fresh page, so Ghost 6's large admin bundle boots from scratch. Under heavy machine load that takes more than 5 s. Logs proved the login itself had succeeded. | Check for "signed in" by the admin navigation (not a URL redirect), and give the admin's first load an explicit, commented 20 s allowance. | |
+
+**Not test problems:** one local run slowed to 3+ minutes when the Mac's load average hit 20–40 (other apps and my own stress runs). Ghost's own logs showed only expected noise: dev-mode email logging and the theme's "slow helper" warning under load.
+
+### What to tell the client
+
+- **Product bugs found: 0.** That's a normal upgrade outcome. Telling "the app changed on purpose" from "the app broke" quickly and correctly is the job. Calling #4 a bug would have been the wrong call.
+- **The suite is now faster and sturdier than before the upgrade**: no CDN dependency, unique test data, no instant-check races.
+- **Watch item:** Ghost 6's admin is heavier to load than Ghost 5's.
