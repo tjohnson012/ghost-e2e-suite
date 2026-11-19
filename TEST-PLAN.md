@@ -1,4 +1,4 @@
-# Test plan: Dry Run Publication (Ghost 5.130)
+# Test plan: Dry Run Publication (Ghost 6.78)
 
 Prepared by: Tyler Johnson, Johnson Reply · For: Dana (CTO) · Status: **Approved**
 

@@ -1,7 +1,6 @@
-import { test, expect, uniqueEmail } from '../support/fixtures';
+import { test, expect, uniqueEmail, requestMagicLink } from '../support/fixtures';
 import { Portal } from '../pages/portal';
 import { SiteHeader } from '../pages/site-header';
-import { BASE_URL } from '../support/env';
 
 test.describe('Member signup and sign-in (magic link)', () => {
   test('new reader signs up and is signed in by the emailed link', async ({ page, mailbox }, info) => {
@@ -46,7 +45,7 @@ test.describe('Member signup and sign-in (magic link)', () => {
 
   test('a tampered link shows an error and does not sign anyone in', async ({ page, mailbox }, info) => {
     const email = uniqueEmail(`tamper-${info.project.name}`);
-    await page.request.post('/members/api/send-magic-link/', { data: { email, emailType: 'signup' }, headers: { Origin: BASE_URL } });
+    await requestMagicLink(page.request, email);
     const real = await mailbox.magicLinkFor(email);
     await page.goto(real.replace(/token=[^&]+/, 'token=tampered'));
     await expect(page.frameLocator('[data-testid="portal-notification-frame"]').getByText(/invalid link/i)).toBeVisible();

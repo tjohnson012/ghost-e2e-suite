@@ -51,14 +51,22 @@ export function uniqueEmail(tag: string) {
   return `reader-${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
 }
 
+/**
+ * Asks Ghost to email a magic link, the way Portal does.
+ * Ghost 6+ requires an anti-spam integrity token first; Ghost 5 has no such endpoint, so it's optional.
+ */
+export async function requestMagicLink(api: APIRequestContext, email: string, emailType: 'signup' | 'signin' = 'signup') {
+  const headers = { Origin: BASE_URL };
+  const tokenRes = await api.get('/members/api/integrity-token/', { headers });
+  const integrityToken = tokenRes.ok() ? await tokenRes.text() : undefined;
+  const res = await api.post('/members/api/send-magic-link/', { data: { email, emailType, integrityToken }, headers });
+  expect(res.status(), `send-magic-link for ${email}: ${await res.text()}`).toBe(201);
+}
+
 /** Signs a brand-new member in via the real magic-link email, without clicking through the popup. */
 export async function signInAsNewMember(page: Page, mailbox: Mailbox, tag: string) {
   const email = uniqueEmail(tag);
-  const res = await page.request.post('/members/api/send-magic-link/', {
-    data: { email, emailType: 'signup' },
-    headers: { Origin: BASE_URL },
-  });
-  expect(res.status()).toBe(201);
+  await requestMagicLink(page.request, email);
   await page.goto(await mailbox.magicLinkFor(email));
   return email;
 }

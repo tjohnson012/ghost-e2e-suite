@@ -1,7 +1,7 @@
 # The "client's staging environment": Ghost + a fake inbox for magic-link emails.
 services:
   ghost:
-    image: ghost:5.130.6-alpine
+    image: ghost:6.78.0-alpine
     ports: ["2368:2368"]
     environment:
       NODE_ENV: development
